@@ -1,8 +1,8 @@
 \documentclass[12pt, a4paper]{article}
 
-% --- PAQUETES PRINCIPALES ---
-\usepackage[utf8]{utf8}
-\usepackage[spanish]{babel}
+% --- MAIN PACKAGES ---
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
 \usepackage{amsmath, amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -12,38 +12,38 @@
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{hyperref}
 
-% Configuración del estilo de código Python
+% Python code style configuration
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.96,0.96,0.96}
 
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
+    backgroundcolor=\color{backcolour},
     commentstyle=\color{codegreen},
     keywordstyle=\color{magenta},
     numberstyle=\tiny\color{codegray},
     stringstyle=\color{codepurple},
     basicstyle=\ttfamily\footnotesize,
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    showspaces=false,                
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    showspaces=false,
     showstringspaces=false,
-    showtabs=false,                  
+    showtabs=false,
     tabsize=2
 }
 \lstset{style=mystyle}
 
-% --- DATOS DEL DOCUMENTO Y GRUPO (5 INTEGRANTES) ---
-\title{\textbf{Documentación Técnica: Algoritmo Random Forest}}
+% --- DOCUMENT AND GROUP DATA (5 MEMBERS) ---
+\title{\textbf{Technical Documentation: The Random Forest Algorithm}}
 
 \author{
-  \textbf{Laura Chevarría Saravia} \quad \textbf{Daniel Betancor Andueza} \quad 
+  \textbf{Laura Chevarría Saravia} \quad \textbf{Daniel Betancor Andueza} \quad
   \textbf{Álvaro Ginés Gómez} \\
-  \textbf{Sergio} \quad \textbf{Yousef} \\[0.3cm]
-  \small Grado en Ciencia de Datos --- Habilidades Profesionales para Ingenieros (HPI) \\
-  \small Universidad de Las Palmas de Gran Canaria (ULPGC)
+  \textbf{Sergio} \quad \textbf{Yousef Ahmed Kassem} \\[0.3cm]
+  \small Bachelor's Degree in Data Science --- Professional Skills for Engineers (HPI) \\
+  \small University of Las Palmas de Gran Canaria (ULPGC)
 }
 
 \date{\today}
@@ -53,105 +53,119 @@
 \maketitle
 
 \begin{abstract}
-Este documento presenta una descripción técnica autocontenida del algoritmo de aprendizaje supervisado \textit{Random Forest}. Se analiza el problema del sobreajuste en árboles de decisión individuales, la reducción de varianza mediante agregación por \textit{bootstrapping} (Bagging) y el mecanismo de descorrelación mediante selección aleatoria de subespacios de atributos. Asimismo, se expone la formulación matemática de la impureza de Gini, la estimación del error \textit{Out-Of-Bag} (OOB), un esquema estructural del flujo de predicción, una tabla comparativa de rendimiento y una implementación sintética en Python con \texttt{scikit-learn}.
+This document presents a self-contained technical description of the supervised learning algorithm \textit{Random Forest}. It analyses the problem of overfitting in individual decision trees, variance reduction through bootstrap aggregation (Bagging), and the decorrelation mechanism based on the random selection of feature subspaces. It also covers the mathematical formulation of Gini impurity, the \textit{Out-Of-Bag} (OOB) error estimate, a structural diagram of the prediction workflow, a comparison table, and a concise Python implementation using \texttt{scikit-learn}.
 \end{abstract}
 
-\section{Introducción}
-Los árboles de decisión individuales (CART) son modelos intuitivos y no paramétricos; sin embargo, presentan una alta varianza y una marcada tendencia al sobreajuste (\textit{overfitting}). Presentado por Leo Breiman, el algoritmo \textit{Random Forest} resuelve estas limitaciones mediante un enfoque de aprendizaje en conjunto (\textit{ensemble learning}). Al combinar una colección de árboles de decisión entrenados de forma independiente y paralela, el modelo logra reducir drásticamente el error de predicción en tareas de clasificación y regresión.
+\section{Introduction}
+Individual decision trees (CART) are intuitive, non-parametric models; however, they suffer from high variance and a strong tendency to overfit. Introduced by Leo Breiman, the \textit{Random Forest} algorithm overcomes these limitations through an \textit{ensemble learning} approach. By combining a collection of decision trees trained independently and in parallel, the model substantially reduces prediction error in both classification and regression tasks.
 
-\section{Fundamentos Matemáticos}
+\section{Mathematical Foundations}
 
-\subsection{Criterio de Impureza de Gini}
-Para construir cada nodo de un árbol, el algoritmo busca la variable y el umbral óptimos que maximicen la pureza del subconjunto resultante. La medida de impureza de Gini $G$ para un nodo se define formalmente como:
+\subsection{Gini Impurity Criterion}
+To build each node of a tree, the algorithm searches for the feature and threshold that maximise the purity of the resulting subsets. The Gini impurity $G$ of a node is formally defined as:
 \begin{equation}
 G = 1 - \sum_{k=1}^{K} p_k^2
 \end{equation}
-donde $K$ representa el número total de clases y $p_k$ es la proporción de observaciones pertenecientes a la clase $k$ en dicho nodo.
+where $K$ is the total number of classes and $p_k$ is the proportion of observations in that node belonging to class $k$.
 
-\subsection{Bagging y Subespacios Aleatorios}
-Dado un conjunto de entrenamiento $D$ con $N$ observaciones y $M$ atributos:
+\subsection{Bagging and Random Subspaces}
+Given a training set $D$ with $N$ observations and $M$ features:
 \begin{enumerate}
-    \item Se extraen $B$ muestras \textit{bootstrap} seleccionando $N$ observaciones con reemplazo de $D$.
-    \item En cada árbol $T_b$ ($b = 1, \dots, B$), para cada división de nodo se selecciona aleatoriamente un subconjunto de $m \le M$ atributos (típicamente $m = \sqrt{M}$ en clasificación y $m = M/3$ en regresión).
-    \item Para una nueva observación $x$, la predicción final de clasificación $\hat{Y}(x)$ se obtiene por votación mayoritaria:
+    \item $B$ \textit{bootstrap} samples are drawn, each consisting of $N$ observations sampled from $D$ with replacement.
+    \item In each tree $T_b$ ($b = 1, \dots, B$), a random subset of $m \le M$ features is selected at every node split (typically $m = \sqrt{M}$ for classification and $m = M/3$ for regression).
+    \item For a new observation $x$, the final classification prediction $\hat{Y}(x)$ is obtained by majority vote:
 \end{enumerate}
 
 \begin{equation}
-\hat{Y}(x) = \text{moda} \left\{ T_1(x), T_2(x), \dots, T_B(x) \right\}
+\hat{Y}(x) = \text{mode} \left\{ T_1(x), T_2(x), \dots, T_B(x) \right\}
 \end{equation}
 
-\subsection{Estimación del Error Out-Of-Bag (OOB)}
-En el proceso de selección con reemplazo, aproximadamente el $36.8\%$ de los datos no se utilizan en la construcción de cada árbol individual (datos \textit{Out-Of-Bag}). Esto proporciona una medida interna no sesgada del error de generalización sin necesidad de recurrir a un conjunto de validación externo cruzado.
+\subsection{Out-Of-Bag (OOB) Error Estimate}
+Because sampling is done with replacement, approximately $36.8\%$ of the data is not used to build each individual tree (the \textit{Out-Of-Bag} data). This provides an internal, unbiased estimate of the generalisation error without the need for a separate validation set or cross-validation.
 
-\section{Estructura del Algoritmo y Evaluación}
+\section{Algorithm Structure and Evaluation}
 
-En la Figura~\ref{fig:rf_flow} se ilustra el flujo de entrenamiento y agregación del ensamble.
+Figure~\ref{fig:rf_flow} illustrates the training and aggregation workflow of the ensemble.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}[node distance=1.4cm, every node/.style={draw, fill=blue!6, rounded corners, align=center, font=\small}]
-  \node (data) {\textbf{Dataset Original} $D$ ($N$ muestras, $M$ atributos)};
-  \node (b1) [below left of=data, xshift=-2.2cm, yshift=-0.6cm] {Muestra Bootstrap 1 \\ (Muestra OOB 1)};
-  \node (b2) [below of=data, yshift=-0.6cm] {Muestra Bootstrap 2 \\ (Muestra OOB 2)};
-  \node (b3) [below right of=data, xshift=2.2cm, yshift=-0.6cm] {Muestra Bootstrap $B$ \\ (Muestra OOB $B$)};
-  \node (t1) [below of=b1] {Árbol $T_1(x)$ \\ (atributos $m \le M$)};
-  \node (t2) [below of=b2] {Árbol $T_2(x)$ \\ (atributos $m \le M$)};
-  \node (t3) [below of=b3] {Árbol $T_B(x)$ \\ (atributos $m \le M$)};
-  \node (agg) [below of=t2, yshift=-0.8cm, fill=green!12] {\textbf{Predicción Final} $\hat{Y}(x)$ \\ (Votación Mayoritaria / Promedio)};
-  
-  \draw[->, thick] (data) -- (b1);
-  \draw[->, thick] (data) -- (b2);
-  \draw[->, thick] (data) -- (b3);
-  \draw[->, thick] (b1) -- (t1);
-  \draw[->, thick] (b2) -- (t2);
-  \draw[->, thick] (b3) -- (t3);
-  \draw[->, thick] (t1) -- (agg);
-  \draw[->, thick] (t2) -- (agg);
-  \draw[->, thick] (t3) -- (agg);
+\begin{tikzpicture}[
+  box/.style={draw, fill=blue!6, rounded corners, align=center,
+              font=\small, text width=3.6cm, minimum height=1.1cm},
+  arrow/.style={->, thick}
+]
+  % Row 0: dataset
+  \node[box, text width=7cm, minimum height=0.8cm] (data) at (0,0)
+    {\textbf{Original Dataset} $D$ ($N$ samples, $M$ features)};
+
+  % Row 1: bootstrap samples
+  \node[box] (b1) at (-4.8,-2.2) {Bootstrap Sample 1 \\ (OOB Sample 1)};
+  \node[box] (b2) at ( 0.0,-2.2) {Bootstrap Sample 2 \\ (OOB Sample 2)};
+  \node[box] (b3) at ( 4.8,-2.2) {Bootstrap Sample $B$ \\ (OOB Sample $B$)};
+
+  % Row 2: trees
+  \node[box] (t1) at (-4.8,-4.4) {Tree $T_1(x)$ \\ ($m \le M$ features)};
+  \node[box] (t2) at ( 0.0,-4.4) {Tree $T_2(x)$ \\ ($m \le M$ features)};
+  \node[box] (t3) at ( 4.8,-4.4) {Tree $T_B(x)$ \\ ($m \le M$ features)};
+
+  % Ellipsis between tree 2 and tree B
+  \node at (2.4,-2.2) {$\cdots$};
+  \node at (2.4,-4.4) {$\cdots$};
+
+  % Row 3: aggregation
+  \node[box, fill=green!12, text width=6cm] (agg) at (0,-6.8)
+    {\textbf{Final Prediction} $\hat{Y}(x)$ \\ (Majority Vote / Average)};
+
+  % Arrows
+  \foreach \b in {b1,b2,b3} \draw[arrow] (data.south) -- (\b.north);
+  \draw[arrow] (b1) -- (t1);
+  \draw[arrow] (b2) -- (t2);
+  \draw[arrow] (b3) -- (t3);
+  \foreach \t in {t1,t2,t3} \draw[arrow] (\t.south) -- (agg.north);
 \end{tikzpicture}
-\caption{Diagrama de bloques de la arquitectura Random Forest.}
+\caption{Block diagram of the Random Forest architecture.}
 \label{fig:rf_flow}
 \end{figure}
 
-La Tabla~\ref{tab:rf_vs_cart} resume las diferencias clave entre un único árbol de decisión y el ensamble \textit{Random Forest}.
+Table~\ref{tab:rf_vs_cart} summarises the key differences between a single decision tree and the \textit{Random Forest} ensemble.
 
 \begin{table}[h!]
 \centering
-\caption{Comparativa entre Árbol de Decisión Individual y Random Forest.}
+\caption{Comparison between a single Decision Tree and Random Forest.}
 \label{tab:rf_vs_cart}
 \vspace{0.2cm}
 \begin{tabular}{lcc}
 \toprule
-\textbf{Propiedad / Métrica} & \textbf{Árbol de Decisión (CART)} & \textbf{Random Forest} \\
+\textbf{Property / Metric} & \textbf{Decision Tree (CART)} & \textbf{Random Forest} \\
 \midrule
-Varianza del Modelo & Alta (Propensión a sobreajuste) & \textbf{Baja} (Reducida por ensamble) \\
-Selección de Atributos & Evaluó todos los $M$ atributos & Subconjunto aleatorio $m = \sqrt{M}$ \\
-Interpretabilidad & Alta (Reglas directas) & Moderada / Tipo Caja Negra \\
-Error Out-Of-Bag (OOB) & No disponible & Incorregible / Evaluación interna \\
-Manejo de Datos Faltantes & Sensible & \textbf{Robusto} (Matriz de proximidad) \\
+Model Variance & High (prone to overfitting) & \textbf{Low} (reduced by ensembling) \\
+Feature Selection & Evaluates all $M$ features & Random subset $m = \sqrt{M}$ \\
+Interpretability & High (explicit rules) & Moderate / black box \\
+Out-Of-Bag (OOB) Error & Not available & Built-in internal evaluation \\
+Handling Missing Data & Sensitive & \textbf{Robust} (proximity matrix) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Implementación en Python}
-El siguiente bloque en Python muestra la instanciación e inferencia del modelo utilizando la biblioteca \texttt{scikit-learn}:
+\section{Python Implementation}
+The following Python snippet shows how to instantiate and train the model using the \texttt{scikit-learn} library:
 
-\begin{lstlisting}[language=Python, caption={Uso de RandomForestClassifier en Python.}, label={code:rf_script}]
+\begin{lstlisting}[language=Python, caption={Using RandomForestClassifier in Python.}, label={code:rf_script}]
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 
-# 1. Generar dataset sintético
+# 1. Generate a synthetic dataset
 X, y = make_classification(n_samples=1000, n_features=10, random_state=42)
 
-# 2. Instanciar el modelo con 100 árboles y m = sqrt(M)
+# 2. Instantiate the model with 100 trees and m = sqrt(M)
 rf = RandomForestClassifier(n_estimators=100, max_features='sqrt', oob_score=True, random_state=42)
 
-# 3. Entrenar y evaluar el score OOB
+# 3. Train and evaluate the OOB score
 rf.fit(X, y)
-print(f"Error OOB estimado: {1 - rf.oob_score_:.4f}")
+print(f"Estimated OOB error: {1 - rf.oob_score_:.4f}")
 \end{lstlisting}
 
-\section{Conclusión}
-\textit{Random Forest} se consolida como uno de los algoritmos más versátiles en Ciencia de Datos. Al introducir doble aleatoriedad (en muestras e indicadores), logra descorrelacionar los árboles individuales y maximizar la precisión sin incurrir en sobreajuste.
+\section{Conclusion}
+\textit{Random Forest} has established itself as one of the most versatile algorithms in Data Science. By introducing two sources of randomness (in the samples and in the features), it decorrelates the individual trees and maximises accuracy without overfitting.
 
 \end{document}
