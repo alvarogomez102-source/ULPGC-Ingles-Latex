@@ -1,0 +1,157 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- PAQUETES PRINCIPALES ---
+\usepackage[utf8]{utf8}
+\usepackage[spanish]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+
+% Configuración del estilo de código Python
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% --- DATOS DEL DOCUMENTO Y GRUPO (5 INTEGRANTES) ---
+\title{\textbf{Documentación Técnica: Algoritmo Random Forest}}
+
+\author{
+  \textbf{Laura Chevarría Saravia} \quad \textbf{Daniel Betancor Andueza} \quad 
+  \textbf{Álvaro Ginés Gómez} \\
+  \textbf{Sergio} \quad \textbf{Yousef} \\[0.3cm]
+  \small Grado en Ciencia de Datos --- Habilidades Profesionales para Ingenieros (HPI) \\
+  \small Universidad de Las Palmas de Gran Canaria (ULPGC)
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este documento presenta una descripción técnica autocontenida del algoritmo de aprendizaje supervisado \textit{Random Forest}. Se analiza el problema del sobreajuste en árboles de decisión individuales, la reducción de varianza mediante agregación por \textit{bootstrapping} (Bagging) y el mecanismo de descorrelación mediante selección aleatoria de subespacios de atributos. Asimismo, se expone la formulación matemática de la impureza de Gini, la estimación del error \textit{Out-Of-Bag} (OOB), un esquema estructural del flujo de predicción, una tabla comparativa de rendimiento y una implementación sintética en Python con \texttt{scikit-learn}.
+\end{abstract}
+
+\section{Introducción}
+Los árboles de decisión individuales (CART) son modelos intuitivos y no paramétricos; sin embargo, presentan una alta varianza y una marcada tendencia al sobreajuste (\textit{overfitting}). Presentado por Leo Breiman, el algoritmo \textit{Random Forest} resuelve estas limitaciones mediante un enfoque de aprendizaje en conjunto (\textit{ensemble learning}). Al combinar una colección de árboles de decisión entrenados de forma independiente y paralela, el modelo logra reducir drásticamente el error de predicción en tareas de clasificación y regresión.
+
+\section{Fundamentos Matemáticos}
+
+\subsection{Criterio de Impureza de Gini}
+Para construir cada nodo de un árbol, el algoritmo busca la variable y el umbral óptimos que maximicen la pureza del subconjunto resultante. La medida de impureza de Gini $G$ para un nodo se define formalmente como:
+\begin{equation}
+G = 1 - \sum_{k=1}^{K} p_k^2
+\end{equation}
+donde $K$ representa el número total de clases y $p_k$ es la proporción de observaciones pertenecientes a la clase $k$ en dicho nodo.
+
+\subsection{Bagging y Subespacios Aleatorios}
+Dado un conjunto de entrenamiento $D$ con $N$ observaciones y $M$ atributos:
+\begin{enumerate}
+    \item Se extraen $B$ muestras \textit{bootstrap} seleccionando $N$ observaciones con reemplazo de $D$.
+    \item En cada árbol $T_b$ ($b = 1, \dots, B$), para cada división de nodo se selecciona aleatoriamente un subconjunto de $m \le M$ atributos (típicamente $m = \sqrt{M}$ en clasificación y $m = M/3$ en regresión).
+    \item Para una nueva observación $x$, la predicción final de clasificación $\hat{Y}(x)$ se obtiene por votación mayoritaria:
+\end{enumerate}
+
+\begin{equation}
+\hat{Y}(x) = \text{moda} \left\{ T_1(x), T_2(x), \dots, T_B(x) \right\}
+\end{equation}
+
+\subsection{Estimación del Error Out-Of-Bag (OOB)}
+En el proceso de selección con reemplazo, aproximadamente el $36.8\%$ de los datos no se utilizan en la construcción de cada árbol individual (datos \textit{Out-Of-Bag}). Esto proporciona una medida interna no sesgada del error de generalización sin necesidad de recurrir a un conjunto de validación externo cruzado.
+
+\section{Estructura del Algoritmo y Evaluación}
+
+En la Figura~\ref{fig:rf_flow} se ilustra el flujo de entrenamiento y agregación del ensamble.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[node distance=1.4cm, every node/.style={draw, fill=blue!6, rounded corners, align=center, font=\small}]
+  \node (data) {\textbf{Dataset Original} $D$ ($N$ muestras, $M$ atributos)};
+  \node (b1) [below left of=data, xshift=-2.2cm, yshift=-0.6cm] {Muestra Bootstrap 1 \\ (Muestra OOB 1)};
+  \node (b2) [below of=data, yshift=-0.6cm] {Muestra Bootstrap 2 \\ (Muestra OOB 2)};
+  \node (b3) [below right of=data, xshift=2.2cm, yshift=-0.6cm] {Muestra Bootstrap $B$ \\ (Muestra OOB $B$)};
+  \node (t1) [below of=b1] {Árbol $T_1(x)$ \\ (atributos $m \le M$)};
+  \node (t2) [below of=b2] {Árbol $T_2(x)$ \\ (atributos $m \le M$)};
+  \node (t3) [below of=b3] {Árbol $T_B(x)$ \\ (atributos $m \le M$)};
+  \node (agg) [below of=t2, yshift=-0.8cm, fill=green!12] {\textbf{Predicción Final} $\hat{Y}(x)$ \\ (Votación Mayoritaria / Promedio)};
+  
+  \draw[->, thick] (data) -- (b1);
+  \draw[->, thick] (data) -- (b2);
+  \draw[->, thick] (data) -- (b3);
+  \draw[->, thick] (b1) -- (t1);
+  \draw[->, thick] (b2) -- (t2);
+  \draw[->, thick] (b3) -- (t3);
+  \draw[->, thick] (t1) -- (agg);
+  \draw[->, thick] (t2) -- (agg);
+  \draw[->, thick] (t3) -- (agg);
+\end{tikzpicture}
+\caption{Diagrama de bloques de la arquitectura Random Forest.}
+\label{fig:rf_flow}
+\end{figure}
+
+La Tabla~\ref{tab:rf_vs_cart} resume las diferencias clave entre un único árbol de decisión y el ensamble \textit{Random Forest}.
+
+\begin{table}[h!]
+\centering
+\caption{Comparativa entre Árbol de Decisión Individual y Random Forest.}
+\label{tab:rf_vs_cart}
+\vspace{0.2cm}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Propiedad / Métrica} & \textbf{Árbol de Decisión (CART)} & \textbf{Random Forest} \\
+\midrule
+Varianza del Modelo & Alta (Propensión a sobreajuste) & \textbf{Baja} (Reducida por ensamble) \\
+Selección de Atributos & Evaluó todos los $M$ atributos & Subconjunto aleatorio $m = \sqrt{M}$ \\
+Interpretabilidad & Alta (Reglas directas) & Moderada / Tipo Caja Negra \\
+Error Out-Of-Bag (OOB) & No disponible & Incorregible / Evaluación interna \\
+Manejo de Datos Faltantes & Sensible & \textbf{Robusto} (Matriz de proximidad) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Implementación en Python}
+El siguiente bloque en Python muestra la instanciación e inferencia del modelo utilizando la biblioteca \texttt{scikit-learn}:
+
+\begin{lstlisting}[language=Python, caption={Uso de RandomForestClassifier en Python.}, label={code:rf_script}]
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+
+# 1. Generar dataset sintético
+X, y = make_classification(n_samples=1000, n_features=10, random_state=42)
+
+# 2. Instanciar el modelo con 100 árboles y m = sqrt(M)
+rf = RandomForestClassifier(n_estimators=100, max_features='sqrt', oob_score=True, random_state=42)
+
+# 3. Entrenar y evaluar el score OOB
+rf.fit(X, y)
+print(f"Error OOB estimado: {1 - rf.oob_score_:.4f}")
+\end{lstlisting}
+
+\section{Conclusión}
+\textit{Random Forest} se consolida como uno de los algoritmos más versátiles en Ciencia de Datos. Al introducir doble aleatoriedad (en muestras e indicadores), logra descorrelacionar los árboles individuales y maximizar la precisión sin incurrir en sobreajuste.
+
+\end{document}
